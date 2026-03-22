@@ -1,0 +1,20 @@
+{
+  "name": "yt-dlp-discord",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A Discord bot that lets users download videos, audio, livestreams, and playlists via yt-dlp — with live progress embeds, auto-upload, and DM notifications.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/commands/deploy.js"
+  },
+  "dependencies": {
+    "discord.js": "latest",
+    "dotenv": "latest",
+    "form-data": "latest",
+    "nanoid": "latest"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
