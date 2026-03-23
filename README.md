@@ -46,6 +46,7 @@
 - **Concurrent downloads** — multiple users can download at the same time; each user has their own isolated folder
 - **No file size limit** — gofile.io supports files of any size
 - **Argument sanitization** — dangerous yt-dlp flags (`--exec`, `--cookies-from-browser`, etc.) are blocked to protect the host system
+- **Friendly error messages** — common failures (private video, unsupported site, geo-block, age restriction, rate limit, etc.) are shown in plain language instead of raw yt-dlp output
 
 ---
 
@@ -290,6 +291,8 @@ yt-dlp -U
 | Bot ignores `yt-dlp ...` messages | Enable **Message Content Intent** in the Developer Portal under **Bot → Privileged Gateway Intents**. |
 | Slash commands not showing in Discord | Run `npm run deploy`. Global commands can take up to an hour to appear everywhere. |
 | Bot does not respond in DMs | Make sure **Partials.Channel** and **Partials.Message** are enabled (they are by default in this bot). |
+| Download fails with "not supported" | The site is not supported by yt-dlp. Check the [list of supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). |
+| Download fails with "age-restricted" | The content requires a login. yt-dlp cannot access it without credentials. |
 | No download button after completion | Both gofile.io and litterbox.catbox.moe failed to upload. Check your internet connection and the status of those services. |
 | Embed stops updating mid-download | Discord rate-limits message edits. The bot waits 2.5 s between updates; occasional skips are normal. |
 

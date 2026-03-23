@@ -50,14 +50,69 @@ export function createSuccessActionRow(downloadUrl, fileName) {
   );
 }
 
+function getExitCodeLabel(code) {
+  switch (code) {
+    case 0:    return '0 — Success';
+    case 1:    return '1 — Error';
+    case 2:    return '2 — Partial (some items in playlist failed)';
+    case -1:   return '-1 — Could not start yt-dlp';
+    case null:
+    case undefined: return '? — Unknown';
+    default:   return `${code}`;
+  }
+}
+
+function getFriendlyError(logLines) {
+  const text = logLines.join('\n');
+  if (/unsupported url|is not a supported url|no suitable extractor/i.test(text))
+    return 'This site or URL is not supported.';
+  if (/private video|video is private/i.test(text))
+    return 'This video is private.';
+  if (/this video is unavailable/i.test(text))
+    return 'This video is unavailable.';
+  if (/this video has been removed/i.test(text))
+    return 'This video has been removed.';
+  if (/age.{0,10}restricted|sign in to confirm your age|inappropriate for some users/i.test(text))
+    return 'This content is age-restricted and requires a login.';
+  if (/not available in your country|geo.?restrict|geo.?block/i.test(text))
+    return 'This video is not available in your region.';
+  if (/members.{0,5}only|join this channel/i.test(text))
+    return 'This content is members-only.';
+  if (/has been blocked.*copyright|copyright.*blocked/i.test(text))
+    return 'This video has been blocked due to a copyright claim.';
+  if (/live event will begin|waiting for livestream/i.test(text))
+    return 'This livestream has not started yet.';
+  if (/this live event has ended/i.test(text))
+    return 'This livestream has ended and the recording is not yet available.';
+  if (/http error 403|403: forbidden/i.test(text))
+    return 'Access denied (HTTP 403). The content may be private or geo-blocked.';
+  if (/http error 404|404: not found/i.test(text))
+    return 'Not found (HTTP 404). The video may have been deleted.';
+  if (/http error 429|429: too many/i.test(text))
+    return 'Rate limited (HTTP 429). Try again in a few minutes.';
+  if (/requested format is not available|no video formats found|no formats found/i.test(text))
+    return 'No downloadable formats found. Try a different format or quality setting.';
+  if (/ffmpeg.*not found|ffmpeg is not installed/i.test(text))
+    return 'ffmpeg is not installed on the server. Audio extraction and format merging will not work.';
+  return null;
+}
+
 export function createErrorEmbed(taskId, logLines, exitCode, username) {
-  return new EmbedBuilder()
+  const friendly = getFriendlyError(logLines);
+  const embed = new EmbedBuilder()
     .setTitle(`❌ Download Failed [${taskId}]`)
-    .setDescription(buildLogDescription(logLines))
     .setColor(0xe74c3c)
-    .addFields({ name: 'Exit Code', value: String(exitCode ?? '?'), inline: true })
     .setFooter({ text: `Requested by ${username}` })
     .setTimestamp();
+
+  if (friendly) {
+    embed.setDescription(`**${friendly}**\n\n${buildLogDescription(logLines)}`);
+  } else {
+    embed.setDescription(buildLogDescription(logLines));
+  }
+
+  embed.addFields({ name: 'Exit Code', value: getExitCodeLabel(exitCode), inline: true });
+  return embed;
 }
 
 export function createFileTooLargeEmbed(taskId, fileSize, username) {
