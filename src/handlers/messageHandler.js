@@ -49,7 +49,7 @@ export async function handleMessage(message) {
   // yt-dlp  or  yt-dlp queue
   if (!rawArgs || rawArgs === 'queue') {
     const userDownloads = [...activeDownloads.values()].filter((d) => d.userId === userId);
-    await message.reply({ embeds: [createQueueEmbed(userDownloads, username)] });
+    await message.reply({ embeds: [createQueueEmbed(userDownloads)] });
     return;
   }
 
@@ -96,7 +96,7 @@ export async function handleMessage(message) {
       .setColor(0x5865F2)
       .setTitle('⬇️ Download queued')
       .setDescription('You will receive the progress and download link in your DMs.\n-# Use `yt-dlp cancel <id>` to stop the download.')
-      .setFooter({ text: isLive ? 'Livestream detected — up to 5 can run at once' : 'Videos run one at a time' });
+      .setFooter({ text: isLive ? 'Livestream detected' : 'Use `yt-dlp cancel <id>` to stop the download' });
 
     await message.reply({ embeds: [ackEmbed] });
 

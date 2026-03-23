@@ -71,7 +71,7 @@ export async function handleDownload(interaction) {
         .setColor(0x5865F2)
         .setTitle('⬇️ Download queued')
         .setDescription('You will receive the progress and download link in your DMs.\n-# Use `/cancel` to stop the download.')
-        .setFooter({ text: isLive ? 'Livestream detected — up to 5 can run at once' : 'Videos run one at a time' }),
+        .setFooter({ text: isLive ? 'Livestream detected' : 'Use /cancel to stop the download' }),
     ],
     ephemeral: true,
   });

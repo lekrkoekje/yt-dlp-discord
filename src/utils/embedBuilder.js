@@ -17,16 +17,15 @@ function buildLogDescription(lines) {
   return desc || '```\nStarting...\n```';
 }
 
-export function createProgressEmbed(taskId, logLines, username) {
+export function createProgressEmbed(taskId, logLines) {
   return new EmbedBuilder()
     .setTitle(`⬇️ Downloading... [${taskId}]`)
     .setDescription(buildLogDescription(logLines))
     .setColor(0x3498db)
-    .setFooter({ text: `Requested by ${username}` })
     .setTimestamp();
 }
 
-export function createSuccessEmbed(taskId, fileName, fileSize, format, username) {
+export function createSuccessEmbed(taskId, fileName, fileSize, format) {
   const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
   return new EmbedBuilder()
     .setTitle(`✅ Download Complete [${taskId}]`)
@@ -36,7 +35,6 @@ export function createSuccessEmbed(taskId, fileName, fileSize, format, username)
       { name: 'Size', value: `${sizeMB} MB`, inline: true },
       { name: 'Format', value: format || 'unknown', inline: true },
     )
-    .setFooter({ text: `Requested by ${username}` })
     .setTimestamp();
 }
 
@@ -97,12 +95,11 @@ function getFriendlyError(logLines) {
   return null;
 }
 
-export function createErrorEmbed(taskId, logLines, exitCode, username) {
+export function createErrorEmbed(taskId, logLines, exitCode) {
   const friendly = getFriendlyError(logLines);
   const embed = new EmbedBuilder()
     .setTitle(`❌ Download Failed [${taskId}]`)
     .setColor(0xe74c3c)
-    .setFooter({ text: `Requested by ${username}` })
     .setTimestamp();
 
   if (friendly) {
@@ -115,7 +112,7 @@ export function createErrorEmbed(taskId, logLines, exitCode, username) {
   return embed;
 }
 
-export function createFileTooLargeEmbed(taskId, fileSize, username) {
+export function createFileTooLargeEmbed(taskId, fileSize) {
   const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
   return new EmbedBuilder()
     .setTitle(`⚠️ File Too Large [${taskId}]`)
@@ -126,11 +123,10 @@ export function createFileTooLargeEmbed(taskId, fileSize, username) {
       `- \`audio-only: true\` with \`audio-format: mp3\``,
     )
     .setColor(0xf39c12)
-    .setFooter({ text: `Requested by ${username}` })
     .setTimestamp();
 }
 
-export function createUploadSuccessEmbed(taskId, fileName, fileSize, username) {
+export function createUploadSuccessEmbed(taskId, fileName, fileSize) {
   const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
   return new EmbedBuilder()
     .setTitle(`✅ Upload Complete [${taskId}]`)
@@ -139,34 +135,30 @@ export function createUploadSuccessEmbed(taskId, fileName, fileSize, username) {
       { name: 'File', value: fileName, inline: true },
       { name: 'Size', value: `${sizeMB} MB`, inline: true },
     )
-    .setFooter({ text: `Uploaded by ${username}` })
     .setTimestamp();
 }
 
-export function createUploadingEmbed(taskId, fileName, username) {
+export function createUploadingEmbed(taskId, fileName) {
   return new EmbedBuilder()
     .setTitle(`📤 Uploading... [${taskId}]`)
     .setDescription(`Uploading **${fileName}** to file host...`)
     .setColor(0xf39c12)
-    .setFooter({ text: `Requested by ${username}` })
     .setTimestamp();
 }
 
-export function createCancelledEmbed(taskId, username) {
+export function createCancelledEmbed(taskId) {
   return new EmbedBuilder()
     .setTitle(`🚫 Download Cancelled [${taskId}]`)
     .setColor(0x95a5a6)
-    .setFooter({ text: `Requested by ${username}` })
     .setTimestamp();
 }
 
-export function createQueueEmbed(downloads, username) {
+export function createQueueEmbed(downloads) {
   if (downloads.length === 0) {
     return new EmbedBuilder()
       .setTitle('📋 Your Download Queue')
       .setDescription('No active downloads.')
       .setColor(0x95a5a6)
-      .setFooter({ text: `Requested by ${username}` })
       .setTimestamp();
   }
 
@@ -181,6 +173,5 @@ export function createQueueEmbed(downloads, username) {
     .setTitle('📋 Your Download Queue')
     .setDescription(list)
     .setColor(0x3498db)
-    .setFooter({ text: `Requested by ${username}` })
     .setTimestamp();
 }

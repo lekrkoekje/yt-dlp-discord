@@ -16,25 +16,27 @@ import { uploadFile } from '../utils/fileUploader.js';
 import { deleteFile, deleteUserDir } from '../utils/cleanup.js';
 import { logger } from '../utils/logger.js';
 import { DOWNLOADS_DIR, LOG_UPDATE_INTERVAL } from '../config.js';
+import { checkResources } from '../utils/systemMonitor.js';
 
 let logs = null;
 try { logs = await import('../logs.js'); } catch {}
-
-const MAX_CONCURRENT_VIDEO = 1;
-const MAX_CONCURRENT_LIVE  = 5;
 
 // taskId -> { process, userId, url, username, taskId, stop }
 export const activeDownloads = new Map();
 export const cancelledTasks  = new Set();
 
-// userId -> { videoSlots, liveSlots, videoQueue[], liveQueue[] }
-const userQueues = new Map();
+// Global resource-based queue — { resolve, isLive }
+const waitingQueue = [];
 
-function getQueue(userId) {
-  if (!userQueues.has(userId)) {
-    userQueues.set(userId, { videoSlots: 0, liveSlots: 0, videoQueue: [], liveQueue: [] });
+function processQueue() {
+  for (let i = 0; i < waitingQueue.length; i++) {
+    const reason = checkResources(waitingQueue[i].isLive);
+    if (!reason) {
+      const [entry] = waitingQueue.splice(i, 1);
+      entry.resolve();
+      return;
+    }
   }
-  return userQueues.get(userId);
 }
 
 // Flags users are not allowed to pass — prevents reading host cookies/credentials,
@@ -105,17 +107,12 @@ export async function detectIsLive(url, args = []) {
 }
 
 export async function queueDownload({ reply, client, userId, username, ytArgs, outputName, url, isLive, isDM, guildId, guildName, channelId, source }) {
-  const q = getQueue(userId);
-  const slotKey  = isLive ? 'liveSlots'  : 'videoSlots';
-  const queueKey = isLive ? 'liveQueue'  : 'videoQueue';
-  const maxSlots = isLive ? MAX_CONCURRENT_LIVE : MAX_CONCURRENT_VIDEO;
-  const type     = isLive ? 'livestream' : 'video/audio';
-
+  const type = isLive ? 'livestream' : 'video/audio';
   logger.queue(username, type, isDM, guildName, guildId, channelId);
 
-  if (q[slotKey] >= maxSlots) {
-    const position = q[queueKey].length + 1;
-
+  const reason = checkResources(isLive);
+  if (reason) {
+    const position = waitingQueue.length + 1;
     try {
       const user = await client.users.fetch(userId);
       await user.send({
@@ -123,23 +120,19 @@ export async function queueDownload({ reply, client, userId, username, ytArgs, o
           new EmbedBuilder()
             .setColor(0xf39c12)
             .setTitle('⏳ Download queued')
-            .setDescription(`Your download is queued at position **${position}**. It will start automatically when the current one finishes.`)
-            .setFooter({ text: `Requested by ${username}` })
+            .setDescription(`Your download has been added to the queue at position **${position}**. The server is busy — it will start automatically when ready.`)
             .setTimestamp(),
         ],
       });
     } catch {}
 
-    await new Promise((resolve) => q[queueKey].push(resolve));
+    await new Promise((resolve) => waitingQueue.push({ resolve, isLive }));
   }
 
-  q[slotKey]++;
   try {
     await startDownload({ reply, userId, username, ytArgs, outputName, url, isLive, isDM, guildId, guildName, channelId, source });
   } finally {
-    q[slotKey]--;
-    const next = q[queueKey].shift();
-    if (next) next();
+    setTimeout(processQueue, 1500);
   }
 }
 
@@ -157,7 +150,7 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
   let embedMessage;
 
   try {
-    embedMessage = await reply(createProgressEmbed(taskId, ['Starting download...'], username));
+    embedMessage = await reply(createProgressEmbed(taskId, ['Starting download...']));
   } catch (err) {
     logger.error(`Could not send DM to ${username}: ${err.message}`);
     return;
@@ -179,7 +172,7 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
   const updateInterval = setInterval(async () => {
     if (!embedMessage) return;
     try {
-      await embedMessage.edit({ embeds: [createProgressEmbed(taskId, logLines, username)] });
+      await embedMessage.edit({ embeds: [createProgressEmbed(taskId, logLines)] });
     } catch {}
   }, LOG_UPDATE_INTERVAL);
 
@@ -209,7 +202,7 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
       done = true;
       if (cancelledTasks.has(taskId)) {
         cancelledTasks.delete(taskId);
-        try { await embedMessage.edit({ embeds: [createCancelledEmbed(taskId, username)] }); } catch {}
+        try { await embedMessage.edit({ embeds: [createCancelledEmbed(taskId)] }); } catch {}
         resolve();
         return;
       }
@@ -243,7 +236,7 @@ async function handleSuccess({ embedMessage, username, userId, userDir, taskId, 
   if (newFiles.length === 0) {
     try {
       await embedMessage.edit({
-        embeds: [createErrorEmbed(taskId, ['No files were found after the download completed.'], 0, username)],
+        embeds: [createErrorEmbed(taskId, ['No files were found after the download completed.'], 0)],
       });
 
     } catch {}
@@ -257,7 +250,7 @@ async function handleSuccess({ embedMessage, username, userId, userDir, taskId, 
 
     const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
     logger.uploading(username, taskId, file, sizeMB);
-    try { await embedMessage.edit({ embeds: [createUploadingEmbed(taskId, file, username)] }); } catch {}
+    try { await embedMessage.edit({ embeds: [createUploadingEmbed(taskId, file)] }); } catch {}
 
     const uploadResult = await uploadFile(filePath);
     await deleteFile(filePath);
@@ -266,7 +259,7 @@ async function handleSuccess({ embedMessage, username, userId, userDir, taskId, 
       logger.failure(username, taskId, `upload failed: ${uploadResult.error}`);
       try {
         await embedMessage.edit({
-          embeds: [createErrorEmbed(taskId, [`Upload failed: ${uploadResult.error}`], 0, username)],
+          embeds: [createErrorEmbed(taskId, [`Upload failed: ${uploadResult.error}`], 0)],
         });
   
       } catch {}
@@ -280,7 +273,7 @@ async function handleSuccess({ embedMessage, username, userId, userDir, taskId, 
 
     try {
       await embedMessage.edit({
-        embeds: [createSuccessEmbed(taskId, file, fileStats.size, format, username)],
+        embeds: [createSuccessEmbed(taskId, file, fileStats.size, format)],
         components: [createSuccessActionRow(uploadResult.url, file)],
       });
 
@@ -299,7 +292,7 @@ async function handleFailure({ embedMessage, userDir, taskId, logLines, exitCode
 
   try {
     await embedMessage.edit({
-      embeds: [createErrorEmbed(taskId, logLines, exitCode, username)],
+      embeds: [createErrorEmbed(taskId, logLines, exitCode)],
     });
   } catch {}
 

@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 import { DISCORD_TOKEN } from './config.js';
 import { checkDependencies, cleanupDownloadsDir } from './utils/cleanup.js';
+import { startBandwidthMonitor } from './utils/systemMonitor.js';
 import { logger } from './utils/logger.js';
 
 import { handleMessage } from './handlers/messageHandler.js';
@@ -28,6 +29,7 @@ client.once('ready', async () => {
   logger.bot(`Logged in as ${client.user.tag}`);
   await cleanupDownloadsDir();
   await checkDependencies();
+  await startBandwidthMonitor();
 
   client.user.setPresence({
     activities: [{ name: 'download anything', type: ActivityType.Custom }],

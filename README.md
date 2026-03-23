@@ -40,7 +40,7 @@
 - **Auto-upload** — finished files are uploaded to [gofile.io](https://gofile.io) (no size limit) with [litterbox.catbox.moe](https://litterbox.catbox.moe) as fallback
 - **Clickable download button** — a link button appears in your DMs once the file is ready
 - **Privacy-safe output** — usernames, absolute paths, IPs, and credentials are stripped from all displayed yt-dlp output
-- **Smart queue** — videos and audio run one at a time per user; livestreams allow up to 5 at once. Queued downloads start automatically.
+- **Smart queue** — downloads start immediately when the server has capacity. If RAM or network bandwidth is saturated, the download is queued and starts automatically when resources free up.
 - **Queue management** — `/queue` lists your active downloads, `/cancel` kills one by task ID
 - **Works in servers and DMs** — trigger downloads from any channel; results always go to your DMs
 - **Concurrent downloads** — multiple users can download at the same time; each user has their own isolated folder
@@ -234,7 +234,7 @@ yt-dlp cancel aB3xYz
 
 1. **Validate** — the bot checks that yt-dlp and ffmpeg are installed at startup. If yt-dlp is missing the bot exits immediately.
 2. **Prepare** — a unique 6-character task ID is generated. A folder `./downloads/{userId}/` is created for the requesting user.
-3. **Acknowledge** — the bot replies with an embed confirming the download is queued (ephemeral for slash commands; visible in channel for message commands). If all slots are occupied you receive a DM with your queue position and the download starts automatically when it's your turn.
+3. **Acknowledge** — the bot replies with an embed confirming the download is queued (ephemeral for slash commands; visible in channel for message commands). If the server is busy (high RAM or network usage) you receive a DM with your queue position and the download starts automatically when resources free up.
 4. **DM progress embed** — the bot sends a progress embed directly to your DMs. It is edited every 2.5 seconds with the last 30 lines of filtered yt-dlp output.
 5. **Upload** — once yt-dlp exits successfully, each new file is uploaded to [gofile.io](https://gofile.io) (no size limit). If gofile.io fails, [litterbox.catbox.moe](https://litterbox.catbox.moe) is tried as a fallback (max 1 GB).
 6. **Result** — the DM embed is updated to show the file name, size, format, and a clickable download button.

@@ -43,7 +43,6 @@ export async function handleUpload(interaction) {
           .setColor(0x3498db)
           .setTitle(`📤 Uploading... [${taskId}]`)
           .setDescription('Fetching and uploading your file…')
-          .setFooter({ text: `Uploaded by ${username}` })
           .setTimestamp(),
       ],
     });
@@ -58,7 +57,7 @@ export async function handleUpload(interaction) {
     buffer = Buffer.from(await res.arrayBuffer());
   } catch (err) {
     try {
-      await dmMessage.edit({ embeds: [createErrorEmbed(taskId, [`Could not fetch file: ${err.message}`], 0, username)] });
+      await dmMessage.edit({ embeds: [createErrorEmbed(taskId, [`Could not fetch file: ${err.message}`], 0)] });
     } catch {}
     return;
   }
@@ -67,7 +66,7 @@ export async function handleUpload(interaction) {
 
   if (!result.success) {
     try {
-      await dmMessage.edit({ embeds: [createErrorEmbed(taskId, [`Upload failed: ${result.error}`], 0, username)] });
+      await dmMessage.edit({ embeds: [createErrorEmbed(taskId, [`Upload failed: ${result.error}`], 0)] });
     } catch {}
     return;
   }
@@ -78,7 +77,7 @@ export async function handleUpload(interaction) {
 
   try {
     await dmMessage.edit({
-      embeds: [createUploadSuccessEmbed(taskId, attachment.name, attachment.size, username)],
+      embeds: [createUploadSuccessEmbed(taskId, attachment.name, attachment.size)],
       components: [createSuccessActionRow(result.url, attachment.name)],
     });
   } catch {}
@@ -120,7 +119,6 @@ export async function handleUploadMessage({ message, isDM, userId, username, gui
           .setColor(0x3498db)
           .setTitle(`📤 Uploading... [${taskId}]`)
           .setDescription('Fetching and uploading your file…')
-          .setFooter({ text: `Uploaded by ${username}` })
           .setTimestamp(),
       ],
     });
@@ -135,7 +133,7 @@ export async function handleUploadMessage({ message, isDM, userId, username, gui
     buffer = Buffer.from(await res.arrayBuffer());
   } catch (err) {
     try {
-      await dmMessage.edit({ embeds: [createErrorEmbed(taskId, [`Could not fetch file: ${err.message}`], 0, username)] });
+      await dmMessage.edit({ embeds: [createErrorEmbed(taskId, [`Could not fetch file: ${err.message}`], 0)] });
     } catch {}
     return;
   }
@@ -144,7 +142,7 @@ export async function handleUploadMessage({ message, isDM, userId, username, gui
 
   if (!result.success) {
     try {
-      await dmMessage.edit({ embeds: [createErrorEmbed(taskId, [`Upload failed: ${result.error}`], 0, username)] });
+      await dmMessage.edit({ embeds: [createErrorEmbed(taskId, [`Upload failed: ${result.error}`], 0)] });
     } catch {}
     return;
   }
@@ -155,7 +153,7 @@ export async function handleUploadMessage({ message, isDM, userId, username, gui
 
   try {
     await dmMessage.edit({
-      embeds: [createUploadSuccessEmbed(taskId, attachment.name, attachment.size, username)],
+      embeds: [createUploadSuccessEmbed(taskId, attachment.name, attachment.size)],
       components: [createSuccessActionRow(result.url, attachment.name)],
     });
   } catch {}

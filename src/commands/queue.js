@@ -3,10 +3,8 @@ import { createQueueEmbed } from '../utils/embedBuilder.js';
 
 export async function handleQueue(interaction) {
   const userId = interaction.user.id;
-  const username = interaction.user.tag;
-
   const userDownloads = [...activeDownloads.values()].filter((d) => d.userId === userId);
-  const embed = createQueueEmbed(userDownloads, username);
+  const embed = createQueueEmbed(userDownloads);
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
