@@ -112,19 +112,6 @@ export function createErrorEmbed(taskId, logLines, exitCode) {
   return embed;
 }
 
-export function createFileTooLargeEmbed(taskId, fileSize) {
-  const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
-  return new EmbedBuilder()
-    .setTitle(`⚠️ File Too Large [${taskId}]`)
-    .setDescription(
-      `The file is **${sizeMB} MB**, which exceeds the 100 MB limit for free hosting.\n\n` +
-      `Try again with a lower quality or format, for example:\n` +
-      `- \`format: worst\`\n` +
-      `- \`audio-only: true\` with \`audio-format: mp3\``,
-    )
-    .setColor(0xf39c12)
-    .setTimestamp();
-}
 
 export function createUploadSuccessEmbed(taskId, fileName, fileSize) {
   const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);

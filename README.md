@@ -41,7 +41,8 @@
 - **Clickable download button** — a link button appears in your DMs once the file is ready
 - **Privacy-safe output** — usernames, absolute paths, IPs, and credentials are stripped from all displayed yt-dlp output
 - **Smart queue** — downloads start immediately when the server has capacity. If RAM or network bandwidth is saturated, the download is queued and starts automatically when resources free up.
-- **Queue management** — `/queue` lists your active downloads, `/cancel` kills one by task ID
+- **Queue management** — `/queue` lists your active downloads, `/cancel` kills one by task ID, `/clear` stops everything at once
+- **DM cleanup** — `/purge` deletes all bot messages from your DMs after a confirmation prompt
 - **Works in servers and DMs** — trigger downloads from any channel; results always go to your DMs
 - **Concurrent downloads** — multiple users can download at the same time; each user has their own isolated folder
 - **No file size limit** — gofile.io supports files of any size
@@ -207,7 +208,7 @@ The bot replies with an ephemeral confirmation in the channel, then sends the go
 
 ---
 
-### /queue and /cancel
+### /queue, /cancel, /clear and /purge
 
 **`/queue`** — shows all of your currently active downloads with their task IDs. The response is only visible to you.
 
@@ -225,6 +226,10 @@ You can also cancel via the message prefix:
 ```
 yt-dlp cancel aB3xYz
 ```
+
+**`/clear`** — stops all of your active downloads immediately and clears any queued downloads in one go.
+
+**`/purge`** — sends a confirmation prompt to your DMs. If confirmed, the bot deletes all of its own messages from your DM conversation.
 
 ---
 

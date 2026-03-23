@@ -107,7 +107,15 @@ const cancelCommand = new SlashCommandBuilder()
       .setDescription('The task ID shown in the download message, e.g. aB3xYz')
       .setRequired(true));
 
-const commands = [downloadCommand, uploadCommand, queueCommand, cancelCommand].map((c) => c.toJSON());
+const clearCommand = new SlashCommandBuilder()
+  .setName('clear')
+  .setDescription('Stop all your active downloads and clear your queue');
+
+const purgeCommand = new SlashCommandBuilder()
+  .setName('purge')
+  .setDescription('Delete all bot messages from your DMs');
+
+const commands = [downloadCommand, uploadCommand, queueCommand, cancelCommand, clearCommand, purgeCommand].map((c) => c.toJSON());
 
 const rest = new REST().setToken(DISCORD_TOKEN);
 

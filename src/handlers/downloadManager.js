@@ -25,8 +25,26 @@ try { logs = await import('../logs.js'); } catch {}
 export const activeDownloads = new Map();
 export const cancelledTasks  = new Set();
 
-// Global resource-based queue — { resolve, isLive }
+// Global resource-based queue — { resolve, reject, isLive, userId }
 const waitingQueue = [];
+
+export function clearUserDownloads(userId) {
+  // Cancel active downloads
+  for (const [taskId, dl] of activeDownloads) {
+    if (dl.userId !== userId) continue;
+    cancelledTasks.add(taskId);
+    dl.stop();
+    try { dl.process.kill('SIGTERM'); } catch { try { dl.process.kill(); } catch {} }
+    activeDownloads.delete(taskId);
+  }
+  // Reject queued items
+  for (let i = waitingQueue.length - 1; i >= 0; i--) {
+    if (waitingQueue[i].userId === userId) {
+      waitingQueue[i].reject(new Error('cleared'));
+      waitingQueue.splice(i, 1);
+    }
+  }
+}
 
 function processQueue() {
   for (let i = 0; i < waitingQueue.length; i++) {
@@ -126,7 +144,11 @@ export async function queueDownload({ reply, client, userId, username, ytArgs, o
       });
     } catch {}
 
-    await new Promise((resolve) => waitingQueue.push({ resolve, isLive }));
+    try {
+      await new Promise((resolve, reject) => waitingQueue.push({ resolve, reject, isLive, userId }));
+    } catch {
+      return; // cleared while waiting
+    }
   }
 
   try {

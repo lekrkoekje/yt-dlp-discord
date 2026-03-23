@@ -14,6 +14,8 @@ import { handleDownload } from './commands/download.js';
 import { handleUpload } from './commands/upload.js';
 import { handleQueue } from './commands/queue.js';
 import { handleCancel } from './commands/cancel.js';
+import { handleClear } from './commands/clear.js';
+import { handlePurge } from './commands/purge.js';
 
 const client = new Client({
   intents: [
@@ -49,6 +51,10 @@ client.on('interactionCreate', async (interaction) => {
       await handleQueue(interaction);
     } else if (interaction.commandName === 'cancel') {
       await handleCancel(interaction);
+    } else if (interaction.commandName === 'clear') {
+      await handleClear(interaction);
+    } else if (interaction.commandName === 'purge') {
+      await handlePurge(interaction);
     }
   } catch (err) {
     logger.error(`Interaction error: ${err.message}`);
