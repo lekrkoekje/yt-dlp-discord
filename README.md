@@ -37,7 +37,7 @@
 - **`/upload` slash command** — upload any file directly to gofile.io without yt-dlp; file is never saved to disk
 - **`yt-dlp upload` message command** — same as `/upload` but via message with an attachment
 - **Everything in your DMs** — progress, logs, and the download button are sent directly to you, never visible in the server
-- **Live progress embeds** — the embed updates every 2.5 seconds with the last 30 lines of yt-dlp output
+- **Live progress embeds** — the embed updates immediately on the first line of output, then every 2.5 seconds with the last 30 lines of yt-dlp output
 - **Auto-upload** — finished files are uploaded to [gofile.io](https://gofile.io) (no size limit) with [litterbox.catbox.moe](https://litterbox.catbox.moe) as fallback; each service is retried up to 3 times automatically before failing
 - **Clickable download button** — a link button appears in your DMs once the file is ready
 - **Upload retry button** — if all upload attempts fail, the file is kept for 3 hours and a retry button appears so you can try again without re-downloading
@@ -46,7 +46,8 @@
 - **Queue management** — `/queue` lists your active downloads, `/cancel` kills one by task ID, `/clear` stops everything at once
 - **DM cleanup** — `/purge` deletes all bot messages from your DMs after a confirmation prompt
 - **Works in servers and DMs** — trigger downloads from any channel; results always go to your DMs
-- **Concurrent downloads** — multiple users can download at the same time; each user has their own isolated folder
+- **Concurrent downloads** — multiple users can download at the same time; each download gets its own isolated folder so files never mix
+- **Multi-file support** — playlists, `--split-chapters`, and any other multi-file outputs each get their own embed with their own download button; no result overwrites another
 - **No file size limit** — gofile.io supports files of any size
 - **Argument sanitization** — dangerous yt-dlp flags (`--exec`, `--cookies-from-browser`, etc.) are blocked to protect the host system
 - **Friendly error messages** — common failures (private video, unsupported site, geo-block, age restriction, rate limit, etc.) are shown in plain language instead of raw yt-dlp output
@@ -250,12 +251,12 @@ yt-dlp purge
 ### Download pipeline
 
 1. **Validate** — the bot checks that yt-dlp and ffmpeg are installed at startup. If yt-dlp is missing the bot exits immediately.
-2. **Prepare** — a unique 6-character task ID is generated. An isolated folder `./downloads/{userId}/{taskId}/` is created so concurrent downloads never interfere with each other.
+2. **Prepare** — a unique 6-character task ID is generated. An isolated folder `./downloads/{userId}/{taskId}/` is created — each download is completely separated so files from different downloads can never mix.
 3. **Acknowledge** — the bot replies with an embed confirming the download is queued (ephemeral for slash commands; visible in channel for message commands). If the server is busy (high RAM or network usage) you receive a DM with your queue position and the download starts automatically when resources free up.
 4. **DM progress embed** — the bot sends a progress embed directly to your DMs. It updates immediately on the first line of output, then every 2.5 seconds with the last 30 lines of filtered yt-dlp output.
 5. **Upload** — once yt-dlp exits successfully, each file is uploaded to [gofile.io](https://gofile.io) (no size limit) with up to 3 automatic retries. If gofile.io keeps failing, [litterbox.catbox.moe](https://litterbox.catbox.moe) is tried as a fallback (max 1 GB, also 3 retries).
-6. **Result** — the DM embed is updated to show the file name, size, format, and a clickable download button. If all upload attempts fail, a **Retry Upload** button appears and the file is kept for 3 hours so you can retry without re-downloading.
-7. **Cleanup** — the local file is deleted immediately after a successful upload. Partial files (`.part`, `.ytdl`) and failed-download directories are deleted automatically.
+6. **Result** — the DM embed is updated to show the file name, size, format, and a clickable download button. For playlists or multi-file downloads, each file gets its own embed and button. If some playlist items failed (yt-dlp exit code 2), the successfully downloaded files are still uploaded and a warning notice is shown. If all upload attempts fail, a **Retry Upload** button appears and the file is kept for 3 hours so you can retry without re-downloading.
+7. **Cleanup** — the local file is deleted immediately after a successful upload. Partial files (`.part`, `.ytdl`, `.temp`, `.tmp`) and empty files are ignored. The download folder is removed once all files are done.
 
 ### Privacy filter
 

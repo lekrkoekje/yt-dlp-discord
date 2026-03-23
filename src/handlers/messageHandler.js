@@ -122,8 +122,8 @@ export async function handleMessage(message) {
     const ackEmbed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('⬇️ Download queued')
-      .setDescription('You will receive the progress and download link in your DMs.\n-# Use `yt-dlp cancel <id>` to stop the download.')
-      .setFooter({ text: isLive ? 'Livestream detected' : 'Videos run one at a time per user' });
+      .setDescription('You will receive the progress and download link in your DMs.\n-# Use `yt-dlp cancel <id>` to stop the download.');
+    if (isLive) ackEmbed.setFooter({ text: 'Livestream detected' });
 
     await message.reply({ embeds: [ackEmbed] });
 

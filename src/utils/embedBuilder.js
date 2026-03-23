@@ -6,12 +6,12 @@ import {
 } from 'discord.js';
 import { MAX_LOG_LINES } from '../config.js';
 
-function buildLogDescription(lines) {
+function buildLogDescription(lines, maxLen = 4000) {
   const recent = lines.slice(-MAX_LOG_LINES);
   let desc = '```\n' + recent.join('\n') + '\n```';
-  if (desc.length > 4000) {
+  if (desc.length > maxLen) {
     const inner = recent.join('\n');
-    const trimmed = inner.slice(-(4000 - 8));
+    const trimmed = inner.slice(-(maxLen - 8));
     desc = '```\n' + trimmed + '\n```';
   }
   return desc || '```\nStarting...\n```';
@@ -103,7 +103,8 @@ export function createErrorEmbed(taskId, logLines, exitCode) {
     .setTimestamp();
 
   if (friendly) {
-    embed.setDescription(`**${friendly}**\n\n${buildLogDescription(logLines)}`);
+    const prefix = `**${friendly}**\n\n`;
+    embed.setDescription(prefix + buildLogDescription(logLines, 4096 - prefix.length));
   } else {
     embed.setDescription(buildLogDescription(logLines));
   }
