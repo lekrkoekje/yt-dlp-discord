@@ -18,7 +18,8 @@
 - [Usage](#usage)
   - [Slash Command: /yt-dlp](#slash-command-yt-dlp)
   - [Message Command: yt-dlp ...](#message-command-yt-dlp-)
-  - [/queue and /cancel](#queue-and-cancel)
+  - [/upload](#upload)
+  - [/queue, /cancel, /clear and /purge](#queue-cancel-clear-and-purge)
 - [How It Works](#how-it-works)
 - [File Size Limits](#file-size-limits)
 - [Self-Hosting Tips](#self-hosting-tips)
@@ -119,10 +120,12 @@ DISCORD_TOKEN=your_bot_token_here
 CLIENT_ID=your_application_id_here
 ```
 
-| Variable | Where to find it |
-|---|---|
-| `DISCORD_TOKEN` | [Developer Portal](https://discord.com/developers/applications) → your app → **Bot** → **Token** |
-| `CLIENT_ID` | Developer Portal → your app → **General Information** → **Application ID** |
+| Variable | Required | Where to find it / Notes |
+|---|---|---|
+| `DISCORD_TOKEN` | ✅ | [Developer Portal](https://discord.com/developers/applications) → your app → **Bot** → **Token** |
+| `CLIENT_ID` | ✅ | Developer Portal → your app → **General Information** → **Application ID** |
+| `RAM_QUEUE_THRESHOLD` | ❌ | RAM % at which new downloads are queued instead of started. Default: `85` |
+| `BANDWIDTH_QUEUE_THRESHOLD_MBPS` | ❌ | Network Mbps at which new **livestreams** are queued. Default: `50` |
 
 > **Required:** enable the **Message Content Intent** in the Developer Portal under **Bot → Privileged Gateway Intents**. Without it the `yt-dlp ...` message prefix will not work.
 
@@ -181,7 +184,7 @@ yt-dlp https://www.youtube.com/watch?v=dQw4w9WgXcQ
 yt-dlp -f bestaudio --extract-audio --audio-format mp3 https://www.youtube.com/watch?v=xxx
 ```
 ```
-yt-dlp --yes-playlist -o "%(playlist_index)s - %(title)s" https://www.youtube.com/playlist?list=xxx
+yt-dlp --yes-playlist https://www.youtube.com/playlist?list=xxx
 ```
 ```
 yt-dlp --sponsorblock-remove default -f bestvideo+bestaudio https://www.youtube.com/watch?v=xxx
@@ -229,7 +232,15 @@ yt-dlp cancel aB3xYz
 
 **`/clear`** — stops all of your active downloads immediately and clears any queued downloads in one go.
 
+```
+yt-dlp clear
+```
+
 **`/purge`** — sends a confirmation prompt to your DMs. If confirmed, the bot deletes all of its own messages from your DM conversation.
+
+```
+yt-dlp purge
+```
 
 ---
 

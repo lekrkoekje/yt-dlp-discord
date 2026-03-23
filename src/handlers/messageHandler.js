@@ -1,6 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
-import { queueDownload, activeDownloads, cancelledTasks, detectIsLive } from './downloadManager.js';
+import { queueDownload, activeDownloads, cancelledTasks, detectIsLive, clearUserDownloads } from './downloadManager.js';
 import { handleUploadMessage } from '../commands/upload.js';
+import { handlePurge } from '../commands/purge.js';
 import { createQueueEmbed } from '../utils/embedBuilder.js';
 import { logger } from '../utils/logger.js';
 let logs = null;
@@ -56,6 +57,27 @@ export async function handleMessage(message) {
   // yt-dlp upload (with attachment)
   if (rawArgs === 'upload') {
     await handleUploadMessage({ message, isDM, userId, username, guildId, guildName, channelId });
+    return;
+  }
+
+  // yt-dlp clear
+  if (rawArgs === 'clear') {
+    const active = [...activeDownloads.values()].filter((d) => d.userId === userId).length;
+    clearUserDownloads(userId);
+    await message.reply(active > 0
+      ? `Stopped ${active} active download${active !== 1 ? 's' : ''} and cleared the queue.`
+      : 'Queue cleared. No active downloads were running.');
+    return;
+  }
+
+  // yt-dlp purge
+  if (rawArgs === 'purge') {
+    await handlePurge({
+      client: message.client,
+      user: message.author,
+      guild: message.guild,
+      reply: async (opts) => message.reply(opts?.content ?? opts),
+    });
     return;
   }
 
