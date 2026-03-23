@@ -12,7 +12,6 @@
 ## Table of Contents
 
 - [Features](#features)
-- [Demo / Screenshots](#demo--screenshots)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
@@ -47,17 +46,6 @@
 - **Concurrent downloads** — multiple users can download at the same time; each user has their own isolated folder
 - **No file size limit** — gofile.io supports files of any size
 - **Argument sanitization** — dangerous yt-dlp flags (`--exec`, `--cookies-from-browser`, etc.) are blocked to protect the host system
-
----
-
-## Demo / Screenshots
-
-| Progress embed | Complete embed |
-|---|---|
-| ![Progress embed](docs/progress.png) | ![Complete embed](docs/complete.png) |
-
-*Progress embed: live yt-dlp output (last 30 lines) while the download is running.*
-*Complete embed: file name, size, format, and a one-click download button.*
 
 ---
 
