@@ -40,14 +40,13 @@
 - **Live progress embeds** — the embed updates every 2.5 seconds with the last 30 lines of yt-dlp output
 - **Auto-upload** — finished files are uploaded to [gofile.io](https://gofile.io) (no size limit) with [litterbox.catbox.moe](https://litterbox.catbox.moe) as fallback
 - **Clickable download button** — a link button appears in your DMs once the file is ready
-- **Auto-delete** — all bot DMs are automatically deleted after 30 minutes; server ack messages and trigger messages after 30 seconds
-- **Startup message sweep** — on restart the bot deletes any of its own leftover messages (DMs and server channels) that were not cleaned up while offline
 - **Privacy-safe output** — usernames, absolute paths, IPs, and credentials are stripped from all displayed yt-dlp output
 - **Smart queue** — videos and audio run one at a time per user; livestreams allow up to 5 at once. Queued downloads start automatically.
 - **Queue management** — `/queue` lists your active downloads, `/cancel` kills one by task ID
 - **Works in servers and DMs** — trigger downloads from any channel; results always go to your DMs
 - **Concurrent downloads** — multiple users can download at the same time; each user has their own isolated folder
 - **No file size limit** — gofile.io supports files of any size
+- **Argument sanitization** — dangerous yt-dlp flags (`--exec`, `--cookies-from-browser`, etc.) are blocked to protect the host system
 
 ---
 
@@ -137,8 +136,6 @@ CLIENT_ID=your_application_id_here
 
 > **Required:** enable the **Message Content Intent** in the Developer Portal under **Bot → Privileged Gateway Intents**. Without it the `yt-dlp ...` message prefix will not work.
 
-> **Recommended:** give the bot the **Manage Messages** permission in your server so it can delete the user's trigger message after 30 seconds alongside its own reply.
-
 ---
 
 ## Usage
@@ -166,7 +163,6 @@ Use the Discord slash command interface. Each option is described in plain langu
 | `audio-format` | `--audio-format` | Audio codec when `audio-only` is true: `mp3`, `aac`, `flac`, `opus`, `wav`, `m4a` | `mp3` |
 | `audio-quality` | `--audio-quality` | Audio quality: Best / High / Medium / Low / Smallest (0–10, 0 = best) | Best |
 | `output-name` | `-o` | Custom output filename without extension. Example: `%(title)s` | `%(title)s [%(id)s]` |
-| `cookies-from-browser` | `--cookies-from-browser` | Use cookies from an installed browser: `chrome`, `firefox`, `edge`, `safari`, `opera`, `brave` | — |
 | `limit-rate` | `-r` | Cap the download speed. Examples: `5M`, `500K` | unlimited |
 | `playlist` | `--yes-playlist` | Download the full playlist instead of a single video | `false` |
 | `playlist-items` | `--playlist-items` | Which items to download from a playlist. Examples: `1-5`, `1,3,5` | all |
@@ -175,7 +171,7 @@ Use the Discord slash command interface. Each option is described in plain langu
 | `thumbnail` | `--embed-thumbnail` | Embed the video thumbnail into the file | `false` |
 | `sponsorblock` | `--sponsorblock-remove default` | Automatically cut out sponsor segments via SponsorBlock | `false` |
 | `keep-going` | `-i` / `--ignore-errors` | Keep going when a download in a playlist fails | `false` |
-| `extra-args` | *(raw passthrough)* | Any additional yt-dlp flags typed exactly as on the command line | — |
+| `extra-args` | *(raw passthrough)* | Any additional yt-dlp flags typed exactly as on the command line. Note: dangerous flags like `--exec` and `--cookies-from-browser` are blocked. | — |
 
 **`extra-args` combined with built-in options:**
 ```
@@ -201,7 +197,7 @@ yt-dlp --yes-playlist -o "%(playlist_index)s - %(title)s" https://www.youtube.co
 yt-dlp --sponsorblock-remove default -f bestvideo+bestaudio https://www.youtube.com/watch?v=xxx
 ```
 
-Works in both server channels and DMs. The bot replies with a queued embed and then sends all progress to your DMs. In server channels, both the bot's reply and your original message are automatically deleted after 30 seconds.
+Works in both server channels and DMs. The bot replies with a queued embed and then sends all progress to your DMs.
 
 ---
 
@@ -218,7 +214,7 @@ Via message (attach the file to the message):
 yt-dlp upload
 ```
 
-The bot replies with an ephemeral confirmation in the channel, then sends the gofile.io link as a DM embed with a clickable download button. The DM is automatically deleted after 30 minutes.
+The bot replies with an ephemeral confirmation in the channel, then sends the gofile.io link as a DM embed with a clickable download button.
 
 ---
 
@@ -249,13 +245,11 @@ yt-dlp cancel aB3xYz
 
 1. **Validate** — the bot checks that yt-dlp and ffmpeg are installed at startup. If yt-dlp is missing the bot exits immediately.
 2. **Prepare** — a unique 6-character task ID is generated. A folder `./downloads/{userId}/` is created for the requesting user.
-3. **Acknowledge** — the bot replies with an embed confirming the download is queued (ephemeral for slash commands; auto-deleted after 30 seconds for message commands, along with your original message). If all slots are occupied you receive a DM with your queue position and the download starts automatically when it's your turn.
+3. **Acknowledge** — the bot replies with an embed confirming the download is queued (ephemeral for slash commands; visible in channel for message commands). If all slots are occupied you receive a DM with your queue position and the download starts automatically when it's your turn.
 4. **DM progress embed** — the bot sends a progress embed directly to your DMs. It is edited every 2.5 seconds with the last 30 lines of filtered yt-dlp output.
 5. **Upload** — once yt-dlp exits successfully, each new file is uploaded to [gofile.io](https://gofile.io) (no size limit). If gofile.io fails, [litterbox.catbox.moe](https://litterbox.catbox.moe) is tried as a fallback (max 1 GB).
 6. **Result** — the DM embed is updated to show the file name, size, format, and a clickable download button.
-7. **Auto-delete** — all bot DM messages (progress, success, and error) are automatically deleted after 30 minutes.
-8. **Cleanup** — the local file is deleted immediately after upload. Partial files are deleted on failure.
-9. **Startup sweep** — when the bot (re)starts, it deletes any leftover messages it sent (DMs and server channels) that were not cleaned up while offline.
+7. **Cleanup** — the local file is deleted immediately after upload. Partial files are deleted on failure.
 
 ### Privacy filter
 
@@ -308,7 +302,6 @@ yt-dlp -U
 | Bot ignores `yt-dlp ...` messages | Enable **Message Content Intent** in the Developer Portal under **Bot → Privileged Gateway Intents**. |
 | Slash commands not showing in Discord | Run `npm run deploy`. Global commands can take up to an hour to appear everywhere. |
 | Bot does not respond in DMs | Make sure **Partials.Channel** and **Partials.Message** are enabled (they are by default in this bot). |
-| Trigger messages not deleted in server | Give the bot the **Manage Messages** permission. The bot can only delete its own messages without it. |
 | No download button after completion | Both gofile.io and litterbox.catbox.moe failed to upload. Check your internet connection and the status of those services. |
 | Embed stops updating mid-download | Discord rate-limits message edits. The bot waits 2.5 s between updates; occasional skips are normal. |
 

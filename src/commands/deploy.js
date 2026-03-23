@@ -67,18 +67,6 @@ const downloadCommand = new SlashCommandBuilder()
       .setDescription('Cut out sponsor segments automatically (YouTube only)')
       .setRequired(false))
   .addStringOption((o) =>
-    o.setName('cookies-from-browser')
-      .setDescription('Use browser cookies for members-only or age-restricted content')
-      .setRequired(false)
-      .addChoices(
-        { name: 'Chrome', value: 'chrome' },
-        { name: 'Firefox', value: 'firefox' },
-        { name: 'Edge', value: 'edge' },
-        { name: 'Safari', value: 'safari' },
-        { name: 'Opera', value: 'opera' },
-        { name: 'Brave', value: 'brave' },
-      ))
-  .addStringOption((o) =>
     o.setName('limit-rate')
       .setDescription('Cap the download speed. Examples: 5M, 500K')
       .setRequired(false))

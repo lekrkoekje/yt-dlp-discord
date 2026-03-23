@@ -9,6 +9,7 @@ import {
   createSuccessEmbed,
   createSuccessActionRow,
   createErrorEmbed,
+  createCancelledEmbed,
 } from '../utils/embedBuilder.js';
 import { uploadFile } from '../utils/fileUploader.js';
 import { deleteFile, deleteUserDir } from '../utils/cleanup.js';
@@ -33,6 +34,38 @@ function getQueue(userId) {
     userQueues.set(userId, { videoSlots: 0, liveSlots: 0, videoQueue: [], liveQueue: [] });
   }
   return userQueues.get(userId);
+}
+
+// Flags users are not allowed to pass — prevents reading host cookies/credentials,
+// arbitrary code execution, or writing files outside the designated download dir.
+const BLOCKED_FLAGS = new Set([
+  '--cookies', '--cookies-from-browser',
+  '--exec', '--exec-before-download',
+  '--external-downloader', '--external-downloader-args',
+  '--post-processor-args', '--postprocessor-args',
+  '--config-location', '--ignore-config', '--no-config',
+  '--netrc', '--netrc-location', '--netrc-cmd',
+  '--load-info-json',
+  '--print-to-file',
+  '--download-archive', '--break-on-existing',
+  '-o', '--output',
+  '--paths', '-P',
+]);
+
+function sanitizeArgs(args) {
+  const result = [];
+  let skip = false;
+  for (const arg of args) {
+    if (skip) { skip = false; continue; }
+    const flag = arg.includes('=') ? arg.split('=')[0] : arg;
+    if (BLOCKED_FLAGS.has(flag)) {
+      // If the flag uses --flag value (not --flag=value), skip next token too
+      if (!arg.includes('=')) skip = true;
+      continue;
+    }
+    result.push(arg);
+  }
+  return result;
 }
 
 export function detectIsLive(url, args = []) {
@@ -115,12 +148,13 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
 
   logger.start(username, taskId, url);
 
+  const safeArgs = sanitizeArgs(ytArgs);
   const template = outputName ? `${outputName}.%(ext)s` : '%(title)s [%(id)s].%(ext)s';
   const fullArgs = [
     '--newline', '--no-colors', '--progress',
     '--paths', userDir,
     '-o', template,
-    ...ytArgs,
+    ...safeArgs,
   ];
 
   const child = spawn('yt-dlp', fullArgs);
@@ -156,7 +190,12 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
       activeDownloads.delete(taskId);
       if (done) { resolve(); return; }
       done = true;
-      if (cancelledTasks.has(taskId)) { cancelledTasks.delete(taskId); resolve(); return; }
+      if (cancelledTasks.has(taskId)) {
+        cancelledTasks.delete(taskId);
+        try { await embedMessage.edit({ embeds: [createCancelledEmbed(taskId, username)] }); } catch {}
+        resolve();
+        return;
+      }
       if (code === 0) {
         await handleSuccess({ embedMessage, username, userId, userDir, taskId, existingFiles, url, isLive, isDM, guildId, guildName, channelId, source });
       } else {

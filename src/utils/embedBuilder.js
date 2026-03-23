@@ -88,6 +88,14 @@ export function createUploadSuccessEmbed(taskId, fileName, fileSize, username) {
     .setTimestamp();
 }
 
+export function createCancelledEmbed(taskId, username) {
+  return new EmbedBuilder()
+    .setTitle(`🚫 Download Cancelled [${taskId}]`)
+    .setColor(0x95a5a6)
+    .setFooter({ text: `Requested by ${username}` })
+    .setTimestamp();
+}
+
 export function createQueueEmbed(downloads, username) {
   if (downloads.length === 0) {
     return new EmbedBuilder()

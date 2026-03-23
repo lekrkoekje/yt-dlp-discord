@@ -80,12 +80,12 @@ export async function handleMessage(message) {
 
   // Regular download
   const args = parseArgs(rawArgs);
-  const url  = extractUrl(args);
-  if (!url) {
-    await message.reply('No URL found. Example: `yt-dlp https://youtube.com/watch?v=...`');
+  if (args.length === 0) {
+    await message.reply('Usage: `yt-dlp <url> [options]`');
     return;
   }
 
+  const url    = extractUrl(args) ?? '';
   const isLive = detectIsLive(url, args);
   let reply;
 

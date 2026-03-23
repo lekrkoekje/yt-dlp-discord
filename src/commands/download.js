@@ -34,7 +34,6 @@ export async function handleDownload(interaction) {
   const subLang        = interaction.options.getString('sub-lang');
   const thumbnail      = interaction.options.getBoolean('thumbnail') ?? false;
   const sponsorblock   = interaction.options.getBoolean('sponsorblock') ?? false;
-  const cookiesBrowser = interaction.options.getString('cookies-from-browser');
   const limitRate      = interaction.options.getString('limit-rate');
   const keepGoing      = interaction.options.getBoolean('keep-going') ?? false;
   const outputName     = interaction.options.getString('output-name');
@@ -52,7 +51,6 @@ export async function handleDownload(interaction) {
   if (subLang) ytArgs.push('--sub-lang', subLang);
   if (thumbnail) ytArgs.push('--embed-thumbnail');
   if (sponsorblock) ytArgs.push('--sponsorblock-remove', 'default');
-  if (cookiesBrowser) ytArgs.push('--cookies-from-browser', cookiesBrowser);
   if (limitRate) ytArgs.push('-r', limitRate);
   if (keepGoing) ytArgs.push('-i');
   if (extraArgs) ytArgs.push(...splitExtraArgs(extraArgs));
