@@ -75,6 +75,10 @@ export const logger = {
     console.log(line(c.red, 'FAIL', `${fmtUser(username)} ${fmtId(taskId)} ${c.red}exit ${exitCode}${c.reset}`));
   },
 
+  uploading(username, taskId, fileName, sizeMB) {
+    console.log(line(c.yellow, 'UPLOAD', `${fmtUser(username)} ${fmtId(taskId)} uploading ${c.yellow}${fileName}${c.reset} (${sizeMB} MB)...`));
+  },
+
   upload(username, taskId, fileName, sizeMB, uploadUrl, isDM, guildName, guildId, channelId) {
     const loc = fmtLocation(isDM, guildName, guildId, channelId);
     console.log(line(c.green, 'UPLOAD', `${fmtUser(username)} ${fmtId(taskId)} ${c.green}${fileName}${c.reset} (${sizeMB} MB) ${c.dim}→${c.reset} ${c.cyan}${uploadUrl}${c.reset} in ${loc}`));

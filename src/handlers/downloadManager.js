@@ -10,6 +10,7 @@ import {
   createSuccessActionRow,
   createErrorEmbed,
   createCancelledEmbed,
+  createUploadingEmbed,
 } from '../utils/embedBuilder.js';
 import { uploadFile } from '../utils/fileUploader.js';
 import { deleteFile, deleteUserDir } from '../utils/cleanup.js';
@@ -68,8 +69,7 @@ function sanitizeArgs(args) {
   return result;
 }
 
-export function detectIsLive(url, args = []) {
-  if (args.some((a) => a === '--live-from-start' || a === '--wait-for-video')) return true;
+function liveByRegex(url) {
   return /twitch\.tv\/(?!videos\/|clips\/)[^/?]+/.test(url) ||
     /youtube\.com\/(live|.*\/live)/.test(url) ||
     /kick\.com\/[^/?]+/.test(url) ||
@@ -85,6 +85,27 @@ export function detectIsLive(url, args = []) {
     /douyu\.com\/[^/?]+/.test(url) ||
     /huya\.com\/[^/?]+/.test(url) ||
     /facebook\.com\/.*\/live/.test(url);
+}
+
+export async function detectIsLive(url, args = []) {
+  if (args.some((a) => a === '--live-from-start' || a === '--wait-for-video')) return true;
+  if (!url) return false;
+  if (liveByRegex(url)) return true;
+
+  // Ask yt-dlp directly for unknown sites
+  try {
+    const result = await new Promise((resolve) => {
+      const child = spawn('yt-dlp', ['-s', '--print', 'is_live', url]);
+      let output = '';
+      child.stdout.on('data', (d) => { output += d.toString(); });
+      child.on('close', () => resolve(output.trim()));
+      child.on('error', () => resolve(''));
+      setTimeout(() => { try { child.kill(); } catch {} resolve(''); }, 15_000);
+    });
+    if (result === 'True') return true;
+  } catch {}
+
+  return false;
 }
 
 export async function queueDownload({ reply, client, userId, username, ytArgs, outputName, url, isLive, isDM, guildId, guildName, channelId, source }) {
@@ -238,6 +259,10 @@ async function handleSuccess({ embedMessage, username, userId, userDir, taskId, 
     let fileStats;
     try { fileStats = await stat(filePath); } catch { continue; }
 
+    const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
+    logger.uploading(username, taskId, file, sizeMB);
+    try { await embedMessage.edit({ embeds: [createUploadingEmbed(taskId, file, username)] }); } catch {}
+
     const uploadResult = await uploadFile(filePath);
     await deleteFile(filePath);
 
@@ -252,8 +277,7 @@ async function handleSuccess({ embedMessage, username, userId, userDir, taskId, 
       continue;
     }
 
-    const format  = extname(file).slice(1) || 'unknown';
-    const sizeMB  = (fileStats.size / 1024 / 1024).toFixed(2);
+    const format = extname(file).slice(1) || 'unknown';
 
     logger.success(username, taskId, file, sizeMB, uploadResult.url);
     logs?.logDownload({ taskId, userId, username, url, uploadUrl: uploadResult.url, fileName: file, fileSize: fileStats.size, format, isLive, isDM, guildId, guildName, channelId, source });

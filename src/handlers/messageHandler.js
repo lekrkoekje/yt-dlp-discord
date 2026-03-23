@@ -86,7 +86,7 @@ export async function handleMessage(message) {
   }
 
   const url    = extractUrl(args) ?? '';
-  const isLive = detectIsLive(url, args);
+  const isLive = await detectIsLive(url, args);
   let reply;
 
   if (isDM) {

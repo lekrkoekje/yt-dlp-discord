@@ -56,7 +56,7 @@ export async function handleDownload(interaction) {
   if (extraArgs) ytArgs.push(...splitExtraArgs(extraArgs));
   ytArgs.push(url);
 
-  const isLive    = detectIsLive(url, ytArgs);
+  const isLive    = await detectIsLive(url, ytArgs);
   const isDM      = !interaction.guild;
   const userId    = interaction.user.id;
   const username  = interaction.user.tag;

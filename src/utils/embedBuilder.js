@@ -143,6 +143,15 @@ export function createUploadSuccessEmbed(taskId, fileName, fileSize, username) {
     .setTimestamp();
 }
 
+export function createUploadingEmbed(taskId, fileName, username) {
+  return new EmbedBuilder()
+    .setTitle(`📤 Uploading... [${taskId}]`)
+    .setDescription(`Uploading **${fileName}** to file host...`)
+    .setColor(0xf39c12)
+    .setFooter({ text: `Requested by ${username}` })
+    .setTimestamp();
+}
+
 export function createCancelledEmbed(taskId, username) {
   return new EmbedBuilder()
     .setTitle(`🚫 Download Cancelled [${taskId}]`)
