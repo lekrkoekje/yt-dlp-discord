@@ -65,16 +65,13 @@ export async function handleDownload(interaction) {
   const channelId = interaction.channelId ?? null;
 
   // Ephemeral acknowledgement — only visible to the user
-  await interaction.reply({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle('⬇️ Download queued')
-        .setDescription('You will receive the progress and download link in your DMs.\n-# Use `/cancel` to stop the download.')
-        .setFooter({ text: isLive ? 'Livestream detected' : 'Use /cancel to stop the download' }),
-    ],
-    ephemeral: true,
-  });
+  const ackEmbed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle('⬇️ Download queued')
+    .setDescription('You will receive the progress and download link in your DMs.\n-# Use `/cancel` to stop the download.');
+  if (isLive) ackEmbed.setFooter({ text: 'Livestream detected' });
+
+  await interaction.reply({ embeds: [ackEmbed], ephemeral: true });
 
   const reply = async (embed) => {
     if (isDM) return interaction.followUp({ embeds: [embed] });

@@ -49,15 +49,8 @@ export async function handlePurge(interaction) {
     });
 
     if (button.customId === `purge_cancel_${userId}`) {
-      await button.update({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x95a5a6)
-            .setTitle('Cancelled')
-            .setTimestamp(),
-        ],
-        components: [],
-      });
+      await button.update({ embeds: [new EmbedBuilder().setColor(0x95a5a6).setTitle('Cancelled').setTimestamp()], components: [] });
+      setTimeout(() => dmMessage.delete().catch(() => {}), 5000);
       return;
     }
 
@@ -94,15 +87,10 @@ export async function handlePurge(interaction) {
 
     try {
       await dmMessage.edit({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x2ecc71)
-            .setTitle('✅ Done')
-            .setDescription(`Deleted **${deleted}** message${deleted !== 1 ? 's' : ''}.`)
-            .setTimestamp(),
-        ],
+        embeds: [new EmbedBuilder().setColor(0x2ecc71).setTitle('✅ Done').setDescription(`Deleted **${deleted}** message${deleted !== 1 ? 's' : ''}.`).setTimestamp()],
         components: [],
       });
+      setTimeout(() => dmMessage.delete().catch(() => {}), 5000);
     } catch {}
 
   } catch (err) {
