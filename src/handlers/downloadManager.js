@@ -74,10 +74,6 @@ function liveByRegex(url) {
     /youtube\.com\/(live|.*\/live)/.test(url) ||
     /kick\.com\/[^/?]+/.test(url) ||
     /instagram\.com\/.*\/live/.test(url) ||
-    /chaturbate\.com\/[^/?]+/.test(url) ||
-    /stripchat\.com\/[^/?]+/.test(url) ||
-    /bongacams\.com\/[^/?]+/.test(url) ||
-    /camsoda\.com\/[^/?]+/.test(url) ||
     /tiktok\.com\/@[^/?]+\/live/.test(url) ||
     /afreecatv\.com\/[^/?]+/.test(url) ||
     /live\.bilibili\.com\//.test(url) ||
