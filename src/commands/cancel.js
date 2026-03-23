@@ -1,3 +1,4 @@
+import { spawn } from 'child_process';
 import { activeDownloads, cancelledTasks } from '../handlers/downloadManager.js';
 import { logger } from '../utils/logger.js';
 let logs = null;
@@ -29,10 +30,10 @@ export async function handleCancel(interaction) {
   logger.cancel(download.username, taskId);
   logs?.logCancel({ taskId, userId, username: download.username, url: download.url, isDM: !interaction.guild, guildId: interaction.guildId ?? null, guildName: interaction.guild?.name ?? null, channelId: interaction.channelId ?? null });
   download.stop();
-  try {
-    download.process.kill('SIGTERM');
-  } catch {
-    download.process.kill();
+  if (process.platform === 'win32') {
+    try { spawn('taskkill', ['/F', '/T', '/PID', String(download.process.pid)]); } catch {}
+  } else {
+    try { download.process.kill('SIGKILL'); } catch {}
   }
 
   activeDownloads.delete(taskId);

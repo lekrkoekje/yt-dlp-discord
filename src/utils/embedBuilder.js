@@ -140,6 +140,31 @@ export function createCancelledEmbed(taskId) {
     .setTimestamp();
 }
 
+export function createUploadFailedEmbed(taskId, fileName, error) {
+  return new EmbedBuilder()
+    .setTitle(`⚠️ Upload Failed [${taskId}]`)
+    .setColor(0xe67e22)
+    .setDescription(`Could not upload **${fileName}**.\n\`${error}\`\n\nThe file is kept for **3 hours** — use the button below to retry.`)
+    .setTimestamp();
+}
+
+export function createUploadExpiredEmbed(taskId, fileName) {
+  return new EmbedBuilder()
+    .setTitle(`🗑️ Upload Expired [${taskId}]`)
+    .setColor(0x95a5a6)
+    .setDescription(`The retry window for **${fileName}** has expired and the file has been deleted.`)
+    .setTimestamp();
+}
+
+export function createRetryActionRow(taskId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`retry_upload_${taskId}`)
+      .setLabel('Retry Upload')
+      .setStyle(ButtonStyle.Primary),
+  );
+}
+
 export function createQueueEmbed(downloads) {
   if (downloads.length === 0) {
     return new EmbedBuilder()

@@ -10,6 +10,7 @@ import { startBandwidthMonitor } from './utils/systemMonitor.js';
 import { logger } from './utils/logger.js';
 
 import { handleMessage } from './handlers/messageHandler.js';
+import { retryUpload } from './handlers/downloadManager.js';
 import { handleDownload } from './commands/download.js';
 import { handleUpload } from './commands/upload.js';
 import { handleQueue } from './commands/queue.js';
@@ -40,6 +41,19 @@ client.once('ready', async () => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+  if (interaction.isButton()) {
+    if (interaction.customId.startsWith('retry_upload_')) {
+      try {
+        const taskId = interaction.customId.slice('retry_upload_'.length);
+        await interaction.deferUpdate();
+        await retryUpload(taskId, interaction.user.id);
+      } catch (err) {
+        logger.error(`Retry upload error: ${err.message}`);
+      }
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   try {

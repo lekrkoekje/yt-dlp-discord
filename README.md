@@ -38,8 +38,9 @@
 - **`yt-dlp upload` message command** — same as `/upload` but via message with an attachment
 - **Everything in your DMs** — progress, logs, and the download button are sent directly to you, never visible in the server
 - **Live progress embeds** — the embed updates every 2.5 seconds with the last 30 lines of yt-dlp output
-- **Auto-upload** — finished files are uploaded to [gofile.io](https://gofile.io) (no size limit) with [litterbox.catbox.moe](https://litterbox.catbox.moe) as fallback
+- **Auto-upload** — finished files are uploaded to [gofile.io](https://gofile.io) (no size limit) with [litterbox.catbox.moe](https://litterbox.catbox.moe) as fallback; each service is retried up to 3 times automatically before failing
 - **Clickable download button** — a link button appears in your DMs once the file is ready
+- **Upload retry button** — if all upload attempts fail, the file is kept for 3 hours and a retry button appears so you can try again without re-downloading
 - **Privacy-safe output** — usernames, absolute paths, IPs, and credentials are stripped from all displayed yt-dlp output
 - **Smart queue** — downloads start immediately when the server has capacity. If RAM or network bandwidth is saturated, the download is queued and starts automatically when resources free up.
 - **Queue management** — `/queue` lists your active downloads, `/cancel` kills one by task ID, `/clear` stops everything at once
@@ -249,12 +250,12 @@ yt-dlp purge
 ### Download pipeline
 
 1. **Validate** — the bot checks that yt-dlp and ffmpeg are installed at startup. If yt-dlp is missing the bot exits immediately.
-2. **Prepare** — a unique 6-character task ID is generated. A folder `./downloads/{userId}/` is created for the requesting user.
+2. **Prepare** — a unique 6-character task ID is generated. An isolated folder `./downloads/{userId}/{taskId}/` is created so concurrent downloads never interfere with each other.
 3. **Acknowledge** — the bot replies with an embed confirming the download is queued (ephemeral for slash commands; visible in channel for message commands). If the server is busy (high RAM or network usage) you receive a DM with your queue position and the download starts automatically when resources free up.
-4. **DM progress embed** — the bot sends a progress embed directly to your DMs. It is edited every 2.5 seconds with the last 30 lines of filtered yt-dlp output.
-5. **Upload** — once yt-dlp exits successfully, each new file is uploaded to [gofile.io](https://gofile.io) (no size limit). If gofile.io fails, [litterbox.catbox.moe](https://litterbox.catbox.moe) is tried as a fallback (max 1 GB).
-6. **Result** — the DM embed is updated to show the file name, size, format, and a clickable download button.
-7. **Cleanup** — the local file is deleted immediately after upload. Partial files are deleted on failure.
+4. **DM progress embed** — the bot sends a progress embed directly to your DMs. It updates immediately on the first line of output, then every 2.5 seconds with the last 30 lines of filtered yt-dlp output.
+5. **Upload** — once yt-dlp exits successfully, each file is uploaded to [gofile.io](https://gofile.io) (no size limit) with up to 3 automatic retries. If gofile.io keeps failing, [litterbox.catbox.moe](https://litterbox.catbox.moe) is tried as a fallback (max 1 GB, also 3 retries).
+6. **Result** — the DM embed is updated to show the file name, size, format, and a clickable download button. If all upload attempts fail, a **Retry Upload** button appears and the file is kept for 3 hours so you can retry without re-downloading.
+7. **Cleanup** — the local file is deleted immediately after a successful upload. Partial files (`.part`, `.ytdl`) and failed-download directories are deleted automatically.
 
 ### Privacy filter
 
@@ -309,7 +310,7 @@ yt-dlp -U
 | Bot does not respond in DMs | Make sure **Partials.Channel** and **Partials.Message** are enabled (they are by default in this bot). |
 | Download fails with "not supported" | The site is not supported by yt-dlp. Check the [list of supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). |
 | Download fails with "age-restricted" | The content requires a login. yt-dlp cannot access it without credentials. |
-| No download button after completion | Both gofile.io and litterbox.catbox.moe failed to upload. Check your internet connection and the status of those services. |
+| Upload failed after download | Each service is retried 3 times automatically. If all fail, a **Retry Upload** button appears in the embed — click it to try again. The file is kept for 3 hours. |
 | Embed stops updating mid-download | Discord rate-limits message edits. The bot waits 2.5 s between updates; occasional skips are normal. |
 
 ---

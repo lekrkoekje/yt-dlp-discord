@@ -11,6 +11,9 @@ import {
   createErrorEmbed,
   createCancelledEmbed,
   createUploadingEmbed,
+  createUploadFailedEmbed,
+  createUploadExpiredEmbed,
+  createRetryActionRow,
 } from '../utils/embedBuilder.js';
 import { uploadFile } from '../utils/fileUploader.js';
 import { deleteFile, deleteUserDir } from '../utils/cleanup.js';
@@ -28,13 +31,25 @@ export const cancelledTasks  = new Set();
 // Global resource-based queue — { resolve, reject, isLive, userId }
 const waitingQueue = [];
 
+// taskId -> { filePath, file, fileStats, username, userId, embedMessage, timeoutId, url, isLive, isDM, guildId, guildName, channelId, source }
+const pendingRetries = new Map();
+
+function killProcess(child) {
+  if (process.platform === 'win32') {
+    // Kill entire process tree (yt-dlp + ffmpeg children) on Windows
+    try { spawn('taskkill', ['/F', '/T', '/PID', String(child.pid)]); } catch {}
+  } else {
+    try { child.kill('SIGKILL'); } catch {}
+  }
+}
+
 export function clearUserDownloads(userId) {
   // Cancel active downloads
   for (const [taskId, dl] of activeDownloads) {
     if (dl.userId !== userId) continue;
     cancelledTasks.add(taskId);
     dl.stop();
-    try { dl.process.kill('SIGTERM'); } catch { try { dl.process.kill(); } catch {} }
+    killProcess(dl.process);
     activeDownloads.delete(taskId);
   }
   // Reject queued items
@@ -44,6 +59,57 @@ export function clearUserDownloads(userId) {
       waitingQueue.splice(i, 1);
     }
   }
+  // Cancel pending retries
+  for (const [taskId, entry] of pendingRetries) {
+    if (entry.userId !== userId) continue;
+    clearTimeout(entry.timeoutId);
+    pendingRetries.delete(taskId);
+    deleteFile(entry.filePath).catch(() => {});
+    deleteUserDir(join(DOWNLOADS_DIR, userId, taskId)).catch(() => {});
+    entry.embedMessage.edit({ embeds: [createCancelledEmbed(taskId)], components: [] }).catch(() => {});
+  }
+}
+
+export async function retryUpload(taskId, requestUserId) {
+  const entry = pendingRetries.get(taskId);
+  if (!entry || entry.userId !== requestUserId) return;
+
+  const { filePath, file, fileStats, username, userId, embedMessage, timeoutId, url, isLive, isDM, guildId, guildName, channelId, source } = entry;
+  const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
+
+  logger.uploading(username, taskId, file, sizeMB);
+  try { await embedMessage.edit({ embeds: [createUploadingEmbed(taskId, file)], components: [] }); } catch {}
+
+  const uploadResult = await uploadFile(filePath);
+
+  if (!uploadResult.success) {
+    logger.failure(username, taskId, `upload failed (retry): ${uploadResult.error}`);
+    try {
+      await embedMessage.edit({
+        embeds: [createUploadFailedEmbed(taskId, file, uploadResult.error)],
+        components: [createRetryActionRow(taskId)],
+      });
+    } catch {}
+    return;
+  }
+
+  clearTimeout(timeoutId);
+  pendingRetries.delete(taskId);
+
+  const taskDir = join(DOWNLOADS_DIR, userId, taskId);
+  await deleteFile(filePath);
+  try { await deleteUserDir(taskDir); } catch {}
+
+  const format = extname(file).slice(1) || 'unknown';
+  logger.success(username, taskId, file, sizeMB, uploadResult.url);
+  logs?.logDownload({ taskId, userId, username, url, uploadUrl: uploadResult.url, fileName: file, fileSize: fileStats.size, format, isLive, isDM, guildId, guildName, channelId, source });
+
+  try {
+    await embedMessage.edit({
+      embeds: [createSuccessEmbed(taskId, file, fileStats.size, format)],
+      components: [createSuccessActionRow(uploadResult.url, file)],
+    });
+  } catch {}
 }
 
 function processQueue() {
@@ -162,14 +228,12 @@ export async function queueDownload({ reply, client, userId, username, ytArgs, o
 
 async function startDownload({ reply, userId, username, ytArgs, outputName, url, isLive, isDM, guildId, guildName, channelId, source }) {
   const taskId = nanoid(6);
-  const userDir = join(DOWNLOADS_DIR, userId);
-  await mkdir(userDir, { recursive: true });
-
-  let existingFiles = new Set();
-  try { existingFiles = new Set(await readdir(userDir)); } catch {}
+  const taskDir = join(DOWNLOADS_DIR, userId, taskId);
+  await mkdir(taskDir, { recursive: true });
 
   const logLines = [];
   let embedMessage;
+  let stopped = false;
 
   try {
     embedMessage = await reply(createProgressEmbed(taskId, ['Starting download...']));
@@ -184,7 +248,7 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
   const template = outputName ? `${outputName}.%(ext)s` : '%(title)s [%(id)s].%(ext)s';
   const fullArgs = [
     '--newline', '--no-colors', '--progress',
-    '--paths', userDir,
+    '--paths', taskDir,
     '-o', template,
     ...safeArgs,
   ];
@@ -192,7 +256,7 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
   const child = spawn('yt-dlp', fullArgs);
 
   const updateInterval = setInterval(async () => {
-    if (!embedMessage) return;
+    if (stopped || !embedMessage) return;
     try {
       await embedMessage.edit({ embeds: [createProgressEmbed(taskId, logLines)] });
     } catch {}
@@ -204,44 +268,52 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
     url,
     username,
     taskId,
-    stop: () => clearInterval(updateInterval),
+    stop: () => { stopped = true; clearInterval(updateInterval); },
   });
 
-  child.stdout.on('data', (data) => {
+  let firstDataSent = false;
+  function onData(data) {
     data.toString().split('\n').filter((l) => l.trim()).forEach((l) => logLines.push(filterLogLine(l)));
-  });
-  child.stderr.on('data', (data) => {
-    data.toString().split('\n').filter((l) => l.trim()).forEach((l) => logLines.push(filterLogLine(l)));
-  });
+    // Update embed immediately on first output so "Starting download..." clears fast
+    if (!firstDataSent && logLines.length > 0 && embedMessage && !stopped) {
+      firstDataSent = true;
+      embedMessage.edit({ embeds: [createProgressEmbed(taskId, logLines)] }).catch(() => {});
+    }
+  }
+  child.stdout.on('data', onData);
+  child.stderr.on('data', onData);
 
   await new Promise((resolve) => {
     let done = false;
 
     child.on('close', async (code) => {
       clearInterval(updateInterval);
+      stopped = true;
       activeDownloads.delete(taskId);
       if (done) { resolve(); return; }
       done = true;
       if (cancelledTasks.has(taskId)) {
         cancelledTasks.delete(taskId);
         try { await embedMessage.edit({ embeds: [createCancelledEmbed(taskId)] }); } catch {}
+        embedMessage = null;
         resolve();
         return;
       }
       if (code === 0) {
-        await handleSuccess({ embedMessage, username, userId, userDir, taskId, existingFiles, url, isLive, isDM, guildId, guildName, channelId, source });
+        await handleSuccess({ embedMessage, username, userId, taskDir, taskId, url, isLive, isDM, guildId, guildName, channelId, source });
       } else {
-        await handleFailure({ embedMessage, userDir, taskId, logLines, exitCode: code, username, userId, url, isDM, guildId, guildName, channelId, source });
+        await handleFailure({ embedMessage, taskDir, taskId, logLines, exitCode: code, username, userId, url, isDM, guildId, guildName, channelId, source });
       }
       resolve();
     });
 
     child.on('error', async (err) => {
       clearInterval(updateInterval);
+      stopped = true;
       activeDownloads.delete(taskId);
       done = true;
       logLines.push(`Process error: ${err.message}`);
-      await handleFailure({ embedMessage, userDir, taskId, logLines, exitCode: -1, username, userId, url, isDM, guildId, guildName, channelId, source });
+      await handleFailure({ embedMessage, taskDir, taskId, logLines, exitCode: -1, username, userId, url, isDM, guildId, guildName, channelId, source });
       // 'close' will fire after this and call resolve()
     });
   });
@@ -249,24 +321,27 @@ async function startDownload({ reply, userId, username, ytArgs, outputName, url,
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function handleSuccess({ embedMessage, username, userId, userDir, taskId, existingFiles, url, isLive, isDM, guildId, guildName, channelId, source }) {
-  let allFiles = [];
-  try { allFiles = await readdir(userDir); } catch {}
+const TEMP_EXTENSIONS = new Set(['.part', '.ytdl', '.temp', '.tmp']);
 
-  const newFiles = allFiles.filter((f) => !existingFiles.has(f));
+async function handleSuccess({ embedMessage, username, userId, taskDir, taskId, url, isLive, isDM, guildId, guildName, channelId, source }) {
+  let allFiles = [];
+  try { allFiles = await readdir(taskDir); } catch {}
+
+  // Filter out temp/partial files left by yt-dlp
+  const newFiles = allFiles.filter((f) => !TEMP_EXTENSIONS.has(extname(f).toLowerCase()));
 
   if (newFiles.length === 0) {
     try {
       await embedMessage.edit({
         embeds: [createErrorEmbed(taskId, ['No files were found after the download completed.'], 0)],
       });
-
     } catch {}
+    try { await deleteUserDir(taskDir); } catch {}
     return;
   }
 
   for (const file of newFiles) {
-    const filePath = join(userDir, file);
+    const filePath = join(taskDir, file);
     let fileStats;
     try { fileStats = await stat(filePath); } catch { continue; }
 
@@ -275,21 +350,34 @@ async function handleSuccess({ embedMessage, username, userId, userDir, taskId, 
     try { await embedMessage.edit({ embeds: [createUploadingEmbed(taskId, file)] }); } catch {}
 
     const uploadResult = await uploadFile(filePath);
-    await deleteFile(filePath);
 
     if (!uploadResult.success) {
       logger.failure(username, taskId, `upload failed: ${uploadResult.error}`);
+
+      // Keep file — schedule 3-hour expiry
+      const timeoutId = setTimeout(async () => {
+        pendingRetries.delete(taskId);
+        await deleteFile(filePath);
+        try { await deleteUserDir(taskDir); } catch {}
+        try {
+          await embedMessage.edit({ embeds: [createUploadExpiredEmbed(taskId, file)], components: [] });
+        } catch {}
+      }, 3 * 60 * 60 * 1000);
+
+      pendingRetries.set(taskId, { filePath, file, fileStats, username, userId, embedMessage, timeoutId, url, isLive, isDM, guildId, guildName, channelId, source });
+
       try {
         await embedMessage.edit({
-          embeds: [createErrorEmbed(taskId, [`Upload failed: ${uploadResult.error}`], 0)],
+          embeds: [createUploadFailedEmbed(taskId, file, uploadResult.error)],
+          components: [createRetryActionRow(taskId)],
         });
-  
       } catch {}
       continue;
     }
 
-    const format = extname(file).slice(1) || 'unknown';
+    await deleteFile(filePath);
 
+    const format = extname(file).slice(1) || 'unknown';
     logger.success(username, taskId, file, sizeMB, uploadResult.url);
     logs?.logDownload({ taskId, userId, username, url, uploadUrl: uploadResult.url, fileName: file, fileSize: fileStats.size, format, isLive, isDM, guildId, guildName, channelId, source });
 
@@ -298,17 +386,15 @@ async function handleSuccess({ embedMessage, username, userId, userDir, taskId, 
         embeds: [createSuccessEmbed(taskId, file, fileStats.size, format)],
         components: [createSuccessActionRow(uploadResult.url, file)],
       });
-
     } catch {}
   }
 
-  try {
-    const remaining = await readdir(userDir);
-    if (remaining.length === 0) await deleteUserDir(userDir);
-  } catch {}
+  if (!pendingRetries.has(taskId)) {
+    try { await deleteUserDir(taskDir); } catch {}
+  }
 }
 
-async function handleFailure({ embedMessage, userDir, taskId, logLines, exitCode, username, userId, url, isDM, guildId, guildName, channelId, source }) {
+async function handleFailure({ embedMessage, taskDir, taskId, logLines, exitCode, username, userId, url, isDM, guildId, guildName, channelId, source }) {
   logger.failure(username, taskId, exitCode);
   logs?.logFailure({ taskId, userId, username, url, exitCode, isDM, guildId, guildName, channelId, source });
 
@@ -318,9 +404,5 @@ async function handleFailure({ embedMessage, userDir, taskId, logLines, exitCode
     });
   } catch {}
 
-  try {
-    const files = await readdir(userDir);
-    for (const file of files) await deleteFile(join(userDir, file));
-    await deleteUserDir(userDir);
-  } catch {}
+  try { await deleteUserDir(taskDir); } catch {}
 }

@@ -4,20 +4,32 @@ import { basename } from 'path';
 import { Readable } from 'stream';
 import { logger } from './logger.js';
 
+async function withRetry(fn, maxAttempts = 3) {
+  let lastErr;
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const result = await fn();
+      if (result?.success) return result;
+    } catch (err) {
+      lastErr = err;
+    }
+    if (i < maxAttempts - 1) await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw lastErr ?? new Error('All attempts failed');
+}
+
 // Stream a file directly to the upload service — no 2 GiB RAM limit.
 export async function uploadFile(filePath) {
   const filename = basename(filePath);
 
   try {
-    const result = await gofileUploadStream(filePath, filename);
-    if (result.success) return result;
+    return await withRetry(() => gofileUploadStream(filePath, filename));
   } catch (err) {
     logger.warn(`gofile.io failed: ${err.message}`);
   }
 
   try {
-    const result = await litterboxUploadStream(filePath, filename);
-    if (result.success) return result;
+    return await withRetry(() => litterboxUploadStream(filePath, filename));
   } catch (err) {
     logger.warn(`litterbox failed: ${err.message}`);
   }

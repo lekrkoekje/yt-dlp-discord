@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import { spawn } from 'child_process';
 import { queueDownload, activeDownloads, cancelledTasks, detectIsLive, clearUserDownloads } from './downloadManager.js';
 import { handleUploadMessage } from '../commands/upload.js';
 import { handlePurge } from '../commands/purge.js';
@@ -94,7 +95,11 @@ export async function handleMessage(message) {
     logger.cancel(download.username, taskId);
     logs?.logCancel({ taskId, userId, username: download.username, url: download.url, isDM, guildId, guildName, channelId });
     download.stop();
-    try { download.process.kill('SIGTERM'); } catch { download.process.kill(); }
+    if (process.platform === 'win32') {
+      try { spawn('taskkill', ['/F', '/T', '/PID', String(download.process.pid)]); } catch {}
+    } else {
+      try { download.process.kill('SIGKILL'); } catch {}
+    }
     activeDownloads.delete(taskId);
     await message.reply(`Cancelled download \`${taskId}\`.`);
     return;
